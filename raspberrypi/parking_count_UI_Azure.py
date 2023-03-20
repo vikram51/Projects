@@ -82,7 +82,7 @@ def reading(sensor):
     else:
         print ("Incorrect usonic() function varible.")
 
-async def gate_opener():
+async def gate_opener(device_client):
     global state
     global veh
     while 1:
@@ -96,7 +96,7 @@ async def gate_opener():
                     gate_label.config(text="The Gate is OPEN", fg="green")
                     pwm.set_servo_pulsewidth( servo, 500 );
                     veh = veh + 1
-                    await send_telemetry(veh)
+                    await send_telemetry(device_client, veh)
                     label.config(text="Vehicle Count : {}".format(veh), fg="blue")
                     state = "OPEN"
                     time.sleep(2)
@@ -118,7 +118,7 @@ def update_label():
     label.config(text="Vehicle Count : {}".format(veh))
     #root.after(100, update_label)
 
-async def send_telemetry(veh_count):
+async def send_telemetry(device_client, veh_count):
     print("Sending telemetry from various components")
 
     veh_count_msg = {"Parking-Counter": veh_count}
@@ -177,7 +177,7 @@ async def main():
 
     #t1 = threading.Thread(target=gate_opener, args = ())
     #t1.start()
-    await gate_opener()
+    await gate_opener(device_client)
 
     root.mainloop()
     #t1.join()
