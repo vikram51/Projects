@@ -42,6 +42,10 @@ label.pack()
 gate_label.pack()
 root.geometry("200x50+0+0")
 
+gate_text = "The Gate is CLOSED"
+def veh_text(veh_count):
+    return "Vehicle Count : {}".format(veh_count)
+
 async def send_telemetry_from_car_counter(device_client, telemetry_msg, component_name=None):
     msg = pnp_helper.create_telemetry(telemetry_msg, component_name)
     await device_client.send_message(msg)
@@ -60,15 +64,15 @@ async def provision_device(provisioning_host, id_scope, registration_id, symmetr
     provisioning_device_client.provisioning_payload = {"modelId": model_id}
     return await provisioning_device_client.register()
 
-def reading(sensor):
+async def reading(sensor):
     if sensor == 0:
         GPIO.setup(TRIG_PIN,GPIO.OUT)
         GPIO.setup(ECHO_PIN,GPIO.IN)
         GPIO.output(TRIG_PIN, GPIO.LOW)
 
-        time.sleep(0.2)
+        await asyncio.sleep(0.2)
         GPIO.output(TRIG_PIN, True)
-        time.sleep(0.00001)
+        await asyncio.sleep(0.00001)
         GPIO.output(TRIG_PIN, False)
 
         while GPIO.input(ECHO_PIN) == 0:
@@ -85,38 +89,37 @@ def reading(sensor):
 async def gate_opener(device_client):
     global state
     global veh
-    while 1:
-        reader = reading(0)
-        print("The vehicle is %.2f" %reader,"cms away")
-        if (reader < 10):
-            #p.ChangeDutyCycle(2.5)
-            
-            if state == "CLOSED":
-                if veh < MAX_CAP:
-                    gate_label.config(text="The Gate is OPEN", fg="green")
-                    pwm.set_servo_pulsewidth( servo, 500 );
-                    veh = veh + 1
-                    await send_telemetry(device_client, veh)
-                    label.config(text="Vehicle Count : {}".format(veh), fg="blue")
-                    state = "OPEN"
-                    time.sleep(2)
-        else:
-            #p.start(7.5)
-            #p.ChangeDutyCycle(7.5)
-            if state == "OPEN":
-                state = "CLOSED"
-                if veh >= MAX_CAP:
-                    gate_label.config(text="Parking is FULL!", fg="red")
-                else:
-                    pwm.set_servo_pulsewidth( servo, 1500);
-                    gate_label.config(text="The Gate is CLOSED", fg="orange")
-            time.sleep(0.5)      
-                    
+    reader = await reading(0)
+    print("The vehicle is %.2f" %reader,"cms away")
+    if (reader < 10):
+        #p.ChangeDutyCycle(2.5)
+        
+        if state == "CLOSED":
+            if veh < MAX_CAP:
+                gate_text="The Gate is OPEN"
+                pwm.set_servo_pulsewidth( servo, 500 );
+                veh = veh + 1
+                await send_telemetry(device_client, veh)
+                state = "OPEN"
+        await asyncio.sleep(2)
+        await gate_opener(device_client)
+    else:
+        #p.start(7.5)
+        #p.ChangeDutyCycle(7.5)
+        if state == "OPEN":
+            state = "CLOSED"
+            if veh >= MAX_CAP:
+                gate_text="Parking is FULL!"
+            else:
+                pwm.set_servo_pulsewidth( servo, 1500);
+                gate_text="The Gate is CLOSED"
+        await asyncio.sleep(2)      
+        await gate_opener(device_client)
+
 def update_label():
-    pwm.set_servo_pulsewidth( servo, 1500);
-    gate_label.config(text="The Gate is CLOSED")
-    label.config(text="Vehicle Count : {}".format(veh))
-    #root.after(100, update_label)
+    gate_label.config(text=gate_text)
+    label.config(text=veh_text(veh))
+    root.after(100, update_label)
 
 async def send_telemetry(device_client, veh_count):
     print("Sending telemetry from various components")
@@ -127,7 +130,7 @@ async def send_telemetry(device_client, veh_count):
         device_client, veh_count_msg, sensorName1
     )
 
-async def main():
+async def main(async_loop):
     #GPIO.setup(18, GPIO.OUT)
     #p = GPIO.PWM(18, 50)
     pwm.set_mode(servo, pigpio.OUTPUT)
@@ -136,52 +139,45 @@ async def main():
 
     GPIO.setmode(GPIO.BCM)
 
-    switch = "DPS"
-    if switch == "DPS":
-        provisioning_host = (
-            "global.azure-devices-provisioning.net"
-        )
-        id_scope = DEVICE_ID_SCOPE
-        registration_id = DEVICE_ID
-        symmetric_key = DEVICE_KEY
+    provisioning_host = (
+        "global.azure-devices-provisioning.net"
+    )
+    id_scope = DEVICE_ID_SCOPE
+    registration_id = DEVICE_ID
+    symmetric_key = DEVICE_KEY
 
-        registration_result = await provision_device(
-            provisioning_host, id_scope, registration_id, symmetric_key, model_id
-        )
+    registration_result = await provision_device(
+        provisioning_host, id_scope, registration_id, symmetric_key, model_id
+    )
 
-        if registration_result.status == "assigned":
-            print("Device was assigned")
-            print(registration_result.registration_state.assigned_hub)
-            print(registration_result.registration_state.device_id)
-            device_client = IoTHubDeviceClient.create_from_symmetric_key(
-                symmetric_key=symmetric_key,
-                hostname=registration_result.registration_state.assigned_hub,
-                device_id=registration_result.registration_state.device_id,
-                product_info=model_id,
-            )
-        else:
-            raise RuntimeError(
-                "Could not provision device. Aborting Plug and Play device connection."
-            )
+    if registration_result.status == "assigned":
+        print("Device was assigned")
+        print(registration_result.registration_state.assigned_hub)
+        print(registration_result.registration_state.device_id)
+        device_client = IoTHubDeviceClient.create_from_symmetric_key(
+            symmetric_key=symmetric_key,
+            hostname=registration_result.registration_state.assigned_hub,
+            device_id=registration_result.registration_state.device_id,
+            product_info=model_id,
+        )
     else:
         raise RuntimeError(
-            "At least one choice needs to be made for complete functioning of this sample."
+            "Could not provision device. Aborting Plug and Play device connection."
         )
 
-
+    pwm.set_servo_pulsewidth( servo, 1500);
     await device_client.connect()
-
-
-
-    update_label()
-
-    #t1 = threading.Thread(target=gate_opener, args = ())
-    #t1.start()
-    await gate_opener(device_client)
-
+    print("gate opener running")
+    t1 = threading.Thread(target=asyncio.run, args = (gate_opener(device_client),))
+    t1.start()
+    #await gate_opener(device_client)
+    print("showing UI")
+    root.after(100, update_label)
     root.mainloop()
+    #task = asyncio.create_task(root.mainloop())
+    #await asyncio.gather(gate_opener(device_client), task())
     #t1.join()
 
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    async_loop = asyncio.get_event_loop()
+    asyncio.run(main(async_loop))
