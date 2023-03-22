@@ -124,10 +124,10 @@ def update_label():
 async def send_telemetry(device_client, veh_count):
     print("Sending telemetry from various components")
 
-    veh_count_msg = {"Parking-Counter": veh_count}
+    veh_count_msg = {"ParkingCounter": veh_count}
     print("sending count {}".format(veh_count_msg))
     await send_telemetry_from_car_counter(
-        device_client, veh_count_msg, sensorName1
+        device_client, veh_count_msg
     )
 
 async def main(async_loop):
