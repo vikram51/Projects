@@ -37,8 +37,8 @@ pwm = pigpio.pi()
 root = tk.Tk()
 root.title("Counting Vehicles")
 gate_label = tk.Label(root, fg="orange")
-label = tk.Label(root, fg="blue")
-label.pack()
+veh_label = tk.Label(root, fg="blue")
+veh_label.pack()
 gate_label.pack()
 root.geometry("200x50+0+0")
 
@@ -89,6 +89,7 @@ async def reading(sensor):
 async def gate_opener(device_client):
     global state
     global veh
+    global gate_text
     reader = await reading(0)
     print("The vehicle is %.2f" %reader,"cms away")
     if (reader < 10):
@@ -102,7 +103,6 @@ async def gate_opener(device_client):
                 await send_telemetry(device_client, veh)
                 state = "OPEN"
         await asyncio.sleep(2)
-        await gate_opener(device_client)
     else:
         #p.start(7.5)
         #p.ChangeDutyCycle(7.5)
@@ -110,16 +110,18 @@ async def gate_opener(device_client):
             state = "CLOSED"
             if veh >= MAX_CAP:
                 gate_text="Parking is FULL!"
+                pwm.set_servo_pulsewidth( servo, 1500);
             else:
                 pwm.set_servo_pulsewidth( servo, 1500);
                 gate_text="The Gate is CLOSED"
         await asyncio.sleep(2)      
-        await gate_opener(device_client)
+    await gate_opener(device_client)
 
 def update_label():
     gate_label.config(text=gate_text)
-    label.config(text=veh_text(veh))
-    root.after(100, update_label)
+    veh_label.config(text=veh_text(veh))
+    print("updating labels")
+    root.after(1000, update_label)
 
 async def send_telemetry(device_client, veh_count):
     print("Sending telemetry from various components")
@@ -129,6 +131,21 @@ async def send_telemetry(device_client, veh_count):
     await send_telemetry_from_car_counter(
         device_client, veh_count_msg
     )
+
+def gate_opener_worker(device_client):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(gate_opener(device_client))
+    loop.run_forever()
+
+async def update_gate_label(self):
+    self.gate_label["text"] = gate_text
+    await asyncio.sleep(1000)
+
+async def update_veh_label(self):
+    global veh
+    self.veh_label["text"] = veh_text(veh)
+    await asyncio.sleep(1000)
 
 async def main(async_loop):
     #GPIO.setup(18, GPIO.OUT)
@@ -167,14 +184,16 @@ async def main(async_loop):
 
     pwm.set_servo_pulsewidth( servo, 1500);
     await device_client.connect()
-    print("gate opener running")
-    t1 = threading.Thread(target=asyncio.run, args = (gate_opener(device_client),))
+    t1 = threading.Thread(target=gate_opener_worker, args = (device_client,))
     t1.start()
-    #await gate_opener(device_client)
     print("showing UI")
-    root.after(100, update_label)
+    root.after(1000, update_label)
     root.mainloop()
-    #task = asyncio.create_task(root.mainloop())
+    #ui_task = asyncio.create_task(root.mainloop())
+    #gate_task = asyncio.create_task(gate_opener(device_client))
+    #await ui_task
+    print("gate opener running")
+    #await gate_task
     #await asyncio.gather(gate_opener(device_client), task())
     #t1.join()
 

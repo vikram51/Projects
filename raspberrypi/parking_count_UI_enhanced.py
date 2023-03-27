@@ -1,3 +1,4 @@
+#sudo pigpiod please run this command 
 import RPi.GPIO as GPIO
 import tkinter as tk
 import threading
@@ -71,6 +72,7 @@ def gate_opener():
                 state = "CLOSED"
                 if veh >= MAX_CAP:
                     gate_label.config(text="Parking is FULL!", fg="red")
+                    pwm.set_servo_pulsewidth( servo, 1500);
                 else:
                     pwm.set_servo_pulsewidth( servo, 1500);
                     gate_label.config(text="The Gate is CLOSED", fg="orange")
