@@ -34,15 +34,25 @@ veh = 0
 state = "CLOSED"
 pwm = pigpio.pi()
 
-root = tk.Tk()
-root.title("Counting Vehicles")
-gate_label = tk.Label(root, fg="orange")
-veh_label = tk.Label(root, fg="blue")
-veh_label.pack()
-gate_label.pack()
-root.geometry("200x50+0+0")
 
 gate_text = "The Gate is CLOSED"
+gate_text_color = "orange"
+
+root = tk.Tk()
+root.title("Counting Vehicles")
+gate_label = tk.Label(root, fg=gate_text_color, font=("Helvetica", 16))
+gate_label.place(x=50, y=75)
+veh_label = tk.Label(root, fg="blue", font=("Helvetica", 16))
+veh_label.place(x=60, y=50)
+#veh_label.pack()
+#gate_label.pack()
+root.geometry("300x150+0+0")
+
+def reset_counter():
+    global veh
+    veh = 0
+    update_label()    
+
 def veh_text(veh_count):
     return "Vehicle Count : {}".format(veh_count)
 
@@ -98,6 +108,7 @@ async def gate_opener(device_client):
         if state == "CLOSED":
             if veh < MAX_CAP:
                 gate_text="The Gate is OPEN"
+                gate_text_color="green"
                 pwm.set_servo_pulsewidth( servo, 500 );
                 veh = veh + 1
                 await send_telemetry(device_client, veh)
@@ -110,15 +121,17 @@ async def gate_opener(device_client):
             state = "CLOSED"
             if veh >= MAX_CAP:
                 gate_text="Parking is FULL!"
+                gate_text_color="red"
                 pwm.set_servo_pulsewidth( servo, 1500);
             else:
                 pwm.set_servo_pulsewidth( servo, 1500);
+                gate_text_color="orange"
                 gate_text="The Gate is CLOSED"
         await asyncio.sleep(2)      
     await gate_opener(device_client)
 
 def update_label():
-    gate_label.config(text=gate_text)
+    gate_label.config(text=gate_text, fg=gate_text_color)
     veh_label.config(text=veh_text(veh))
     print("updating labels")
     root.after(1000, update_label)
@@ -196,6 +209,9 @@ async def main(async_loop):
     #await gate_task
     #await asyncio.gather(gate_opener(device_client), task())
     #t1.join()
+
+button = tk.Button(root, text="Reset Counter", command=reset_counter).pack(pady=20)
+
 
 if __name__ == "__main__":
     async_loop = asyncio.get_event_loop()
