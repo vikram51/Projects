@@ -6,7 +6,9 @@ import pigpio
 import asyncio
 import logging
 import json
+import queue
 
+from queue import Queue
 from azure.iot.device.aio import IoTHubDeviceClient
 from azure.iot.device.aio import ProvisioningDeviceClient
 from azure.iot.device import MethodResponse
@@ -16,7 +18,7 @@ import pnp_helper
 GPIO.setwarnings(False) #Disable any warning message such as GPIO pins in use
 logging.basicConfig(level=logging.ERROR)
 
-
+gui_queue = Queue()
 
 DEVICE_ID_SCOPE = "0ne00976B17"
 DEVICE_ID = "mwciuczxs7"
@@ -35,24 +37,18 @@ state = "CLOSED"
 pwm = pigpio.pi()
 
 
-gate_text = "The Gate is CLOSED"
-gate_text_color = "orange"
 device_client = None
+gate_text = None
 
 root = tk.Tk()
 root.title("Counting Vehicles")
-gate_label = tk.Label(root, fg=gate_text_color, font=("Helvetica", 16))
+gate_label = tk.Label(root, font=("Helvetica", 16))
 gate_label.place(x=50, y=75)
 veh_label = tk.Label(root, fg="blue", font=("Helvetica", 16))
 veh_label.place(x=60, y=50)
 #veh_label.pack()
 #gate_label.pack()
 root.geometry("300x150+0+0")
-
-def reset_counter():
-    global veh
-    veh = 0
-    update_label()    
 
 def veh_text(veh_count):
     return "Vehicle Count : {}".format(veh_count)
@@ -83,14 +79,15 @@ async def receive_message_handler(message):
 async def receive_message(device_client):
     print("waiting for message, keyboard exit Ctrl=C")
     try:
-        device_client.on_message_received = receive_message_handler
         while True:
-            await asyncio.sleep(1000)
+            device_client.on_message_received = receive_message_handler
+            print("listening")
+            await asyncio.sleep(1)
     except KeyboardInterrupt:
         print("exiting message listening")
     finally:
         print("client Shut down")
-        device_client.shutdown()
+        await device_client.shutdown()
     
 
 async def provision_device(provisioning_host, id_scope, registration_id, symmetric_key, model_id):
@@ -126,10 +123,12 @@ async def reading(sensor):
     else:
         print ("Incorrect usonic() function varible.")
 
-async def gate_opener(device_client):
+async def gate_opener():
     global state
     global veh
     global gate_text
+    global device_client
+    global gui_queue
     reader = await reading(0)
     print("The vehicle is %.2f" %reader,"cms away")
     if (reader < 10):
@@ -138,12 +137,11 @@ async def gate_opener(device_client):
         if state == "CLOSED":
             if veh < MAX_CAP:
                 gate_text="The Gate is OPEN"
-                gate_text_color="green"
+                gui_queue.put(lambda: update_label("green"))
                 pwm.set_servo_pulsewidth( servo, 500 );
                 veh = veh + 1
                 await send_telemetry(device_client, veh)
                 state = "OPEN"
-        await asyncio.sleep(2)
     else:
         #p.start(7.5)
         #p.ChangeDutyCycle(7.5)
@@ -151,20 +149,30 @@ async def gate_opener(device_client):
             state = "CLOSED"
             if veh >= MAX_CAP:
                 gate_text="Parking is FULL!"
-                gate_text_color="red"
+                gui_queue.put(lambda: update_label("red"))
                 pwm.set_servo_pulsewidth( servo, 1500);
             else:
                 pwm.set_servo_pulsewidth( servo, 1500);
-                gate_text_color="orange"
+                gui_queue.put(lambda: update_label("orange"))
                 gate_text="The Gate is CLOSED"
-        await asyncio.sleep(2)      
-    await gate_opener(device_client)
+    await asyncio.sleep(0.5)     
+    await gate_opener()
 
-def update_label():
+def update_label(gate_text_color):
+    global gate_text
+    global veh
     gate_label.config(text=gate_text, fg=gate_text_color)
     veh_label.config(text=veh_text(veh))
     print("updating labels")
-    root.after(1000, update_label)
+    #root.after(1000, update_label)
+    
+def reset_counter():
+    global veh
+    global gate_text
+    veh = 0
+    gate_text = "The Gate is CLOSED"
+    gui_queue.put(lambda: update_label("orange"))
+
 
 async def send_telemetry(device_client, veh_count):
     print("Sending telemetry from various components")
@@ -175,30 +183,32 @@ async def send_telemetry(device_client, veh_count):
         device_client, veh_count_msg
     )
 
-def gate_opener_worker(device_client):
+def gate_opener_worker():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.create_task(gate_opener(device_client))
+    loop.create_task(gate_opener())
     loop.run_forever()
 
 async def update_gate_label(self):
     self.gate_label["text"] = gate_text
-    await asyncio.sleep(1000)
+    await asyncio.sleep(1)
 
 async def update_veh_label(self):
     global veh
     self.veh_label["text"] = veh_text(veh)
-    await asyncio.sleep(1000)
+    await asyncio.sleep(1)
 
-async def main(async_loop):
+def periodicGuiUpdate():
+    while True:
+        try:
+            fn = gui_queue.get_nowait()
+        except queue.Empty:
+            break
+        fn()
+    root.after(200, periodicGuiUpdate)
+
+async def azureConnect():
     global device_client
-    #GPIO.setup(18, GPIO.OUT)
-    #p = GPIO.PWM(18, 50)
-    pwm.set_mode(servo, pigpio.OUTPUT)
-
-    pwm.set_PWM_frequency( servo, 50 )
-
-    GPIO.setmode(GPIO.BCM)
 
     provisioning_host = (
         "global.azure-devices-provisioning.net"
@@ -226,25 +236,58 @@ async def main(async_loop):
             "Could not provision device. Aborting Plug and Play device connection."
         )
 
+    connect_task = asyncio.create_task(device_client.connect())
+    receiver_task = asyncio.create_task(receive_message(device_client))
+    await connect_task
+    await receiver_task
+
+def initSetup():
+    pwm.set_mode(servo, pigpio.OUTPUT)
+    pwm.set_PWM_frequency( servo, 50 )
+    GPIO.setmode(GPIO.BCM)
     pwm.set_servo_pulsewidth( servo, 1500);
-    await device_client.connect()
-    await receive_message(device_client)
-    t1 = threading.Thread(target=gate_opener_worker, args = (device_client,))
-    t1.start()
-    print("showing UI")
-    root.after(1000, update_label)
-    root.mainloop()
-    #ui_task = asyncio.create_task(root.mainloop())
-    #gate_task = asyncio.create_task(gate_opener(device_client))
+
+
+async def runMain():
+    initSetup()
+    azure_task = asyncio.create_task( azureConnect() )
+    gate_task = asyncio.create_task(gate_opener())
+    await gate_task
+    await azure_task
+
+def start_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(runMain())
+    loop.run_forever()
+
+
+async def main():
+    #GPIO.setup(18, GPIO.OUT)
+    #p = GPIO.PWM(18, 50)
+    initSetup()
+
+    azureConnect()
+    #root.after(1000, update_label)
+    #ui_task = asyncio.create_task(root.after(1000, update_label))
+    #root.after(1000, lambda: async_loop.run_until_complete(update_label()))
+    
+    #t1 = threading.Thread(target=gate_opener_worker, args = (device_client,))
+    #t1.start()
+    #print("showing UI")
     #await ui_task
-    print("gate opener running")
+    #print("gate opener running")
     #await gate_task
     #await asyncio.gather(gate_opener(device_client), task())
     #t1.join()
+   
 
 button = tk.Button(root, text="Reset Counter", command=reset_counter).pack(pady=20)
+threading.Thread(target=start_loop).start()
+periodicGuiUpdate()
+reset_counter()
+root.mainloop()
 
 
-if __name__ == "__main__":
-    async_loop = asyncio.get_event_loop()
-    asyncio.run(main(async_loop))
+#if __name__ == "__main__":
+    #asyncio.run(main())

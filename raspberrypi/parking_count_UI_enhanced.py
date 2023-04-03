@@ -90,7 +90,7 @@ gate_label = tk.Label(root, fg="orange")
 label = tk.Label(root, fg="blue")
 label.pack()
 gate_label.pack()
-root.geometry("200x50+0+0")
+root.geometry("1000x500+0+0")
 
 update_label()
 
