@@ -1,3 +1,4 @@
+#sudo pigpiod please run this command 
 import RPi.GPIO as GPIO
 import tkinter as tk
 import threading

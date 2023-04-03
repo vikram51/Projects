@@ -1,3 +1,4 @@
+#sudo pigpiod please run this command 
 import RPi.GPIO as GPIO
 import tkinter as tk
 import threading
@@ -182,21 +183,6 @@ async def send_telemetry(device_client, veh_count):
     await send_telemetry_from_car_counter(
         device_client, veh_count_msg
     )
-
-def gate_opener_worker():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.create_task(gate_opener())
-    loop.run_forever()
-
-async def update_gate_label(self):
-    self.gate_label["text"] = gate_text
-    await asyncio.sleep(1)
-
-async def update_veh_label(self):
-    global veh
-    self.veh_label["text"] = veh_text(veh)
-    await asyncio.sleep(1)
 
 def periodicGuiUpdate():
     while True:
