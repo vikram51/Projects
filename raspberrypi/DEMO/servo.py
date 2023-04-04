@@ -10,32 +10,46 @@ logging.basicConfig(level=logging.ERROR)
 
 
 SERVO_PIN = 18
-MAX = 2500
-MIN = 500
-STEP = 5
+START = 2500
+END = 500
+SPEED = 3
 
 class servo_motor:
-    async def move(self, angle):
-        self.pwm.set_servo_pulsewidth( self.servo_pin, angle);
+    async def move(self, __angle):
+        self.pwm.set_servo_pulsewidth( self.servo_pin, __angle);
 
-    def __init__(self, __servo_pin):
+    def __init__(self, __servo_pin, __start,  __end, __speed):
         self.servo_pin = __servo_pin
+        self.start = __start
+        self.end = __end
+        self.speed = __speed
+        self.step = int((__start - __end) / (__speed*10))
         GPIO.setmode(GPIO.BCM)
         self.pwm = pigpio.pi()
         self.pwm.set_mode(self.servo_pin, pigpio.OUTPUT)
         self.pwm.set_PWM_frequency( self.servo_pin, 50 )
-        asyncio.run(self.move(0))
+        asyncio.run(self.move(self.start))
         asyncio.run(asyncio.sleep(0.2))
 
-    async def rotate(self, delay, reverse):
-        start = MAX if reverse else MIN
-        end = MIN if reverse else MAX
-        step = -1*STEP if reverse else STEP
+    async def rotate(self, reverse):
+        start = self.start if reverse else self.end
+        end = self.end if reverse else self.start
+        step = -1*self.step if reverse else self.step
         for x in range(start, end, step):
             print(x)
             await self.move(x)
-            await asyncio.sleep(delay*STEP/(MAX - MIN))
+            await asyncio.sleep(self.speed*self.step/(self.start - self.end))
+
+    async def openReturn(self, open,  callback):
+        await self.rotate(open)
+        callback()
+
+    def printClose(self):
+        print("I have closed")
         
-obj = servo_motor(SERVO_PIN)
-asyncio.run(obj.rotate(2, False))
-asyncio.run(obj.rotate(2, True))
+#obj = servo_motor(SERVO_PIN, START, END, SPEED)
+#asyncio.run(obj.rotate(False))
+#asyncio.run(obj.rotate(True))
+obj1 = servo_motor(SERVO_PIN, 500, 2500, SPEED)
+asyncio.run(obj1.openReturn(True, obj1.printClose))
+asyncio.run(obj1.openReturn(False, obj1.printClose))
