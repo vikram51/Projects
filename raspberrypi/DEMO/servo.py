@@ -28,8 +28,6 @@ class servo_motor:
         self.pwm = pigpio.pi()
         self.pwm.set_mode(self.servo_pin, pigpio.OUTPUT)
         self.pwm.set_PWM_frequency( self.servo_pin, 50 )
-        asyncio.run(self.move(self.start))
-        asyncio.run(asyncio.sleep(0.2))
 
     async def rotate(self, reverse):
         start = self.start if reverse else self.end
@@ -42,7 +40,7 @@ class servo_motor:
 
     async def openReturn(self, open,  callback):
         await self.rotate(open)
-        callback()
+        await callback()
 
     def printClose(self):
         print("I have closed")

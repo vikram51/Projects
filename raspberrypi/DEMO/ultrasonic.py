@@ -37,11 +37,15 @@ class ultrasonic:
         distance = timepassed * DIST_MULT
         return distance
 
-    async def continuousDistanceCheck(self, min,  delay, callback):
+    async def continuousDistanceCheck(self, min,  delay, callbackMin, callback):
         if(await self.checkDistance() < min):
-            callback();
+            print("Min Distance crossed")
+            callbackMin = await callbackMin
+        else:
+            print("Min Distance NOT crossed")
+            callback = await callback
         await asyncio.sleep(delay)
-        await self.continuousDistanceCheck(min, delay, callback)
+        await self.continuousDistanceCheck(min, delay, callbackMin,  callback)
 
     def printMin(self):
         print("Min Distance crossed")
@@ -49,4 +53,4 @@ class ultrasonic:
 if __name__ == "__main__":
     obj = ultrasonic(ECHO_PIN, TRIG_PIN)
     print(asyncio.run(obj.checkDistance()))
-    asyncio.run(obj.continuousDistanceCheck(10, 0.2, obj.printMin))
+    asyncio.run(obj.continuousDistanceCheck(10, 0.2, obj.printMin, obj.printMin))
