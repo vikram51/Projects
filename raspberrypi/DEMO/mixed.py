@@ -23,10 +23,10 @@ async def stateChange(state, servoObj):
     global CURRENT_STATE
     if(CURRENT_STATE != state):
         openGate = (state == "OPEN")
+        if (not openGate):
+            await asyncio.sleep(4)
         await servoObj.openReturn(openGate, printOpen)
         CURRENT_STATE = state
-        if (not openGate):
-            time.sleep(2)
     return stateChange(state, servoObj)
         
 async def main():
