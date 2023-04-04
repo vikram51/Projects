@@ -30,5 +30,6 @@ class led:
             self.switch(False)
             await asyncio.sleep(freq)
 
-obj = led(LED_PIN)
-asyncio.run(obj.flicker(0.1))
+if __name__ == "__main__":
+    obj = led(LED_PIN)
+    asyncio.run(obj.flicker(0.1))

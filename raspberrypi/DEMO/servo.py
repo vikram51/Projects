@@ -46,10 +46,11 @@ class servo_motor:
 
     def printClose(self):
         print("I have closed")
-        
-#obj = servo_motor(SERVO_PIN, START, END, SPEED)
-#asyncio.run(obj.rotate(False))
-#asyncio.run(obj.rotate(True))
-obj1 = servo_motor(SERVO_PIN, 500, 2500, SPEED)
-asyncio.run(obj1.openReturn(True, obj1.printClose))
-asyncio.run(obj1.openReturn(False, obj1.printClose))
+
+if __name__ == "__main__":        
+    #obj = servo_motor(SERVO_PIN, START, END, SPEED)
+    #asyncio.run(obj.rotate(False))
+    #asyncio.run(obj.rotate(True))
+    obj1 = servo_motor(SERVO_PIN, 500, 2500, SPEED)
+    asyncio.run(obj1.openReturn(True, obj1.printClose))
+    asyncio.run(obj1.openReturn(False, obj1.printClose))

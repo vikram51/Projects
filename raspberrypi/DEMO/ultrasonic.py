@@ -46,6 +46,7 @@ class ultrasonic:
     def printMin(self):
         print("Min Distance crossed")
 
-obj = ultrasonic(ECHO_PIN, TRIG_PIN)
-print(asyncio.run(obj.checkDistance()))
-asyncio.run(obj.continuousDistanceCheck(10, 0.2, obj.printMin))
+if __name__ == "__main__":
+    obj = ultrasonic(ECHO_PIN, TRIG_PIN)
+    print(asyncio.run(obj.checkDistance()))
+    asyncio.run(obj.continuousDistanceCheck(10, 0.2, obj.printMin))
