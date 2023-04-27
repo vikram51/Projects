@@ -20,25 +20,48 @@ class ultrasonic:
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.trig_pin, GPIO.OUT)
         GPIO.setup(self.echo_pin, GPIO.IN)
+        
+    async def waitForEchoTill(self, isHigh):
+        #print ("check echo for {}".format(isHigh))
+        #await asyncio.sleep(0.0001)
+        while GPIO.input(self.echo_pin) == isHigh:
+            await asyncio.sleep(0)
+        return time.time()
 
-    async def checkDistance(self):
+    async def checkEcho(self):
+        print("checking echo for 0")
+        #await signaloff
+        signaloff = await self.waitForEchoTill(0)
+        print("checking echo for 1")
+        signalon = await self.waitForEchoTill(1)
+        return signalon - signaloff
+    
+    async def sendPulse(self):
+        print("sending pulse")
         GPIO.output(self.trig_pin, GPIO.LOW)
         await asyncio.sleep(0.2)
         GPIO.output(self.trig_pin, True)
         await asyncio.sleep(0.00001)
         GPIO.output(self.trig_pin, False)
 
-        while GPIO.input(self.echo_pin) == 0:
-          signaloff = time.time()
+    async def checkDistance(self):
+        timePassedTask = asyncio.create_task(self.checkEcho())
+        sendPulseTask = asyncio.create_task(self.sendPulse())
         
-        while GPIO.input(self.echo_pin) == 1:
-          signalon = time.time()
-        timepassed = signalon - signaloff
+        timepassed = await timePassedTask 
+        await sendPulseTask
+
         distance = timepassed * DIST_MULT
         return distance
+    
+    async def printMin(self):
+        print("await check")
+        #await asyncio.sleep(0.1)
+        return self.printMin()
 
     async def continuousDistanceCheck(self, min,  delay, callbackMin, callback):
-        if(await self.checkDistance() < min):
+        distance = await self.checkDistance()
+        if(distance < min):
             print("Min Distance crossed")
             callbackMin = await callbackMin
         else:
@@ -47,10 +70,7 @@ class ultrasonic:
         await asyncio.sleep(delay)
         await self.continuousDistanceCheck(min, delay, callbackMin,  callback)
 
-    def printMin(self):
-        print("Min Distance crossed")
-
 if __name__ == "__main__":
     obj = ultrasonic(ECHO_PIN, TRIG_PIN)
-    print(asyncio.run(obj.checkDistance()))
-    asyncio.run(obj.continuousDistanceCheck(10, 0.2, obj.printMin, obj.printMin))
+    #print(asyncio.run(obj.checkDistance()))
+    asyncio.run(obj.continuousDistanceCheck(10, 1, obj.printMin(), obj.printMin()))
