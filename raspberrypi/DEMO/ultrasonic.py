@@ -36,7 +36,7 @@ class ultrasonic:
         signalon = await self.waitForEchoTill(1)
         return signalon - signaloff
     
-    async def sendPulse(self):
+    async def trigPulse(self):
         print("sending pulse")
         GPIO.output(self.trig_pin, GPIO.LOW)
         await asyncio.sleep(0.2)
@@ -46,10 +46,10 @@ class ultrasonic:
 
     async def checkDistance(self):
         timePassedTask = asyncio.create_task(self.checkEcho())
-        sendPulseTask = asyncio.create_task(self.sendPulse())
+        trigPulseTask = asyncio.create_task(self.trigPulse())
         
         timepassed = await timePassedTask 
-        await sendPulseTask
+        await trigPulseTask
 
         distance = timepassed * DIST_MULT
         return distance
@@ -60,15 +60,18 @@ class ultrasonic:
         return self.printMin()
 
     async def continuousDistanceCheck(self, min,  delay, callbackMin, callback):
-        distance = await self.checkDistance()
-        if(distance < min):
-            print("Min Distance crossed")
-            callbackMin = await callbackMin
-        else:
-            print("Min Distance NOT crossed")
-            callback = await callback
-        await asyncio.sleep(delay)
-        await self.continuousDistanceCheck(min, delay, callbackMin,  callback)
+        try:
+            while True:
+                distance = await self.checkDistance()
+                if(distance < min):
+                    print("Min Distance crossed")
+                    callbackMin = await callbackMin
+                else:
+                    print("Min Distance NOT crossed")
+                    callback = await callback
+                await asyncio.sleep(delay)
+        except KeyboardInterrupt:
+            print("Exciting continuous checking mode")
 
 if __name__ == "__main__":
     obj = ultrasonic(ECHO_PIN, TRIG_PIN)
