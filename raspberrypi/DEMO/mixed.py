@@ -3,8 +3,8 @@ from ultrasonic import ultrasonic
 from led import led
 from gate_state import gate_state
 import asyncio
+import azure_connect
 import time
-
 
 LED_PIN = 21
 ECHO_PIN = 3
@@ -15,8 +15,11 @@ MIN_DIST = 15
 CHECK_DELAY = 0.2
 
 async def main():
+    
     ledObj = led(LED_PIN)
     flicker_task = asyncio.create_task(ledObj.flicker(0.1))
+    
+    azure_task = asyncio.create_task(azure_connect.azureConnect())
 
     ultraObj = ultrasonic(ECHO_PIN, TRIG_PIN)
     gateObj = gate_state(SERVO_PIN, GATE_ANGLE)
@@ -25,6 +28,7 @@ async def main():
 
     await ultrasonic_task
     await flicker_task
+    await azure_task
 
 if __name__ == "__main__":
     asyncio.run(main())
