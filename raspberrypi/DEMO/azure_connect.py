@@ -35,7 +35,8 @@ async def provision_device(provisioning_host, id_scope, registration_id, symmetr
     provisioning_device_client.provisioning_payload = {"modelId": model_id}
     return await provisioning_device_client.register()
 
-async def send_telemetry(device_client, veh_count):
+async def send_telemetry(veh_count):
+    global device_client
     print("Sending telemetry from various components")
 
     veh_count_msg = {"ParkingCounter": veh_count}
