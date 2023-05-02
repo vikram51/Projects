@@ -15,20 +15,26 @@ async def printOpen():
 
 class gate_state:
     
-    def get_end(self):
-        return int(MAX_RANGE/MAX_ANGLE * self.gate_angle) + START
+    def __get_end(self):
+        return int(MAX_RANGE/MAX_ANGLE * self.__gate_angle) + START
     
-    def __init__(self, __servo_pin, __gate_angle):
-        self.servo_pin = __servo_pin
-        self.gate_angle = __gate_angle
-        self.servo_obj = servo_motor(self.servo_pin, START, self.get_end(), SPEED)
+    def __init__(self, servo_pin, gate_angle):
+        self.__servo_pin = servo_pin
+        self.__gate_angle = gate_angle
+        self.__servo_obj = servo_motor(servo_pin, START, self.__get_end(), SPEED)
 
-    async def stateChange(self, state):
+    async def __stateChange(self, state):
         global CURRENT_STATE
         if(CURRENT_STATE != state):
             openGate = (state == "OPEN")
             if (not openGate):
                 await asyncio.sleep(4)
-            await self.servo_obj.openReturn(openGate, printOpen)
+            await self.__servo_obj.openReturn(openGate, printOpen)
             CURRENT_STATE = state
-        return self.stateChange(state)
+        return self.__stateChange(state)
+    
+    async def openIt(self):
+        return self.__stateChange("OPEN")
+    
+    async def closeIt(self):
+        return self.__stateChange("CLOSED")

@@ -21,7 +21,7 @@ async def main():
     ultraObj = ultrasonic(ECHO_PIN, TRIG_PIN)
     gateObj = gate_state(SERVO_PIN, GATE_ANGLE)
     
-    ultrasonic_task = ultraObj.continuousDistanceCheck(MIN_DIST, CHECK_DELAY, gateObj.stateChange("OPEN"), gateObj.stateChange("CLOSED"))
+    ultrasonic_task = ultraObj.continuousDistanceCheck(MIN_DIST, CHECK_DELAY, gateObj.openIt(), gateObj.closeIt())
 
     await ultrasonic_task
     await flicker_task
