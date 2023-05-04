@@ -25,7 +25,14 @@ class ultrasonic:
         #print ("check echo for {}".format(isHigh))
         #await asyncio.sleep(0.0001)
         while GPIO.input(self.echo_pin) == isHigh:
-            await asyncio.sleep(0)
+            continue
+        return time.time()
+    
+    def nonAwaitEcho(self, isHigh):
+        #print ("check echo for {}".format(isHigh))
+        #await asyncio.sleep(0.0001)
+        while GPIO.input(self.echo_pin) == isHigh:
+           continue
         return time.time()
 
     async def checkEcho(self):
@@ -41,17 +48,23 @@ class ultrasonic:
         GPIO.output(self.trig_pin, GPIO.LOW)
         await asyncio.sleep(0.2)
         GPIO.output(self.trig_pin, True)
-        await asyncio.sleep(0.00001)
+        time.sleep(0.00001)
         GPIO.output(self.trig_pin, False)
 
     async def checkDistance(self):
-        timePassedTask = asyncio.create_task(self.checkEcho())
+       
+        #timePassedTask = asyncio.create_task(self.checkEcho())
         trigPulseTask = asyncio.create_task(self.trigPulse())
-        
-        timepassed = await timePassedTask 
         await trigPulseTask
 
-        distance = timepassed * DIST_MULT
+        signaloff = self.nonAwaitEcho(0)
+        signalon = self.nonAwaitEcho(1)
+        #timepassed = await timePassedTask 
+        
+
+        #distance = timepassed * DIST_MULT
+        distance = (signalon - signaloff) * DIST_MULT
+        print("Distance measured : {}".format(distance))
         return distance
     
     async def printMin(self):
