@@ -2,9 +2,9 @@ from servo import servo_motor
 import asyncio
 import azure_connect
 
-START = 500
+START = 1500
 GATE_ANGLE = 90
-SPEED = 5
+SPEED = 3
 SERVO_PIN = 18
 
 CURRENT_STATE = "CLOSED"
