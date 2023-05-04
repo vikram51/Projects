@@ -31,13 +31,16 @@ class gate_state:
             openGate = (state == "OPEN")
             if (not openGate):
                 await asyncio.sleep(4)
+            else:
+                self.__veh_count += 1
+                print("New Vehicle Count is : {}".format(self.__veh_count))
+                telemetryTask = asyncio.create_task( azure_connect.send_telemetry(self.__veh_count))
+                await telemetryTask
             await self.__servo_obj.openReturn(openGate, printOpen)
             CURRENT_STATE = state
         return self.__stateChange(state)
     
     async def openIt(self):
-        self.__veh_count += 1
-        await azure_connect.send_telemetry(self.__veh_count)
         return self.__stateChange("OPEN")
     
     async def closeIt(self):
