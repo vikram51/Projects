@@ -4,6 +4,7 @@ from led import led
 from gate_state import gate_state
 import asyncio
 import azure_connect
+import threading
 import time
 
 LED_PIN = 21
@@ -14,7 +15,7 @@ GATE_ANGLE = -90
 MIN_DIST = 15
 CHECK_DELAY = 0.2
 
-async def main():
+async def handleGateOnDistanceContinuosuly():
     
     ledObj = led(LED_PIN)
     flicker_task = asyncio.create_task(ledObj.flicker(0.1))
@@ -30,5 +31,13 @@ async def main():
     await flicker_task
     await azure_task
 
+def gateMain():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(handleGateOnDistanceContinuosuly())
+    loop.run_forever()
+    
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    threading.Thread(target=gateMain).start()
+   
